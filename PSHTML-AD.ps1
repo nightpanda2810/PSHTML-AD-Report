@@ -65,7 +65,7 @@ param (
 	#Title of generated report
 
 	[Parameter(ValueFromPipeline = $true, HelpMessage = "Enter desired title for report")]
-	[String]$ReportTitle = "Quadax AD/VC Report",
+	[String]$ReportTitle = "Automated AD/VC Report",
 	#Location the report will be saved to
 
 	[Parameter(ValueFromPipeline = $true, HelpMessage = "Enter desired directory path to save; Default: C:\Automation\")]
@@ -91,8 +91,11 @@ param (
 	#Default template is orange and named "Sample"
 )
 
+$Stopwatch = [system.diagnostics.stopwatch]::startnew()
 #Change this to point to VCenter server address, or leave $NULL to be prompted later.
-$VCenterServer = "vcenter.quadax.net"
+$VCenterServer1 = "vcenter.quadax.net"
+$VCenterServer2 = "invvcenter.quadax.net"
+$VCenterServer3 = "viewctr.quadax.net"
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -ParticipateInCEIP $false -Confirm:$false | Out-Null
 
 Import-Module VMware.VimAutomation.Core
@@ -234,11 +237,16 @@ $DatastoreTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $PortGroupTable  = New-Object 'System.Collections.Generic.List[System.Object]'
 $VcenterAlarmTable  = New-Object 'System.Collections.Generic.List[System.Object]'
 $EsxiHostTable  = New-Object 'System.Collections.Generic.List[System.Object]'
+#TESTS
+$MyTestC1Table = New-Object 'System.Collections.Generic.List[System.Object]'
+$MyTestC2Table = New-Object 'System.Collections.Generic.List[System.Object]'
+$VmwareVmListTooManyCPU = New-Object 'System.Collections.Generic.List[System.Object]'
+$VmwareVmListHighMemory = New-Object 'System.Collections.Generic.List[System.Object]'
+$VmwareVmListCPUReady = New-Object 'System.Collections.Generic.List[System.Object]'
 
 
 #Get all users right away. Instead of doing several lookups, we will use this object to look up all the information needed.
 $AllUsers = Get-ADUser -Filter * -Properties *
-
 $GPOs = Get-GPO -All | Select-Object DisplayName, GPOStatus, ModificationTime, @{ Label = "ComputerVersion"; Expression = { $_.computer.dsversion } }, @{ Label = "UserVersion"; Expression = { $_.user.dsversion } }
 
 <###########################
@@ -566,6 +574,7 @@ if (($DomainTable).Count -eq 0)
 }
 
 Write-Host "Done!" -ForegroundColor White
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
 
 <###########################
 
@@ -796,6 +805,7 @@ $objmem = [PSCustomObject]@{
 $GroupMembershipTable.Add($objmem)
 
 Write-Host "Done!" -ForegroundColor White
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
 
 <###########################
 
@@ -908,6 +918,7 @@ $obj2 = [PSCustomObject]@{
 $OUProtectionTable.Add($obj2)
 
 Write-Host "Done!" -ForegroundColor White
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
 
 <###########################
 
@@ -933,6 +944,8 @@ $AccountsExpiringSoon = 0
 $userphaventloggedonrecentlytable = New-Object 'System.Collections.Generic.List[System.Object]'
 foreach ($User in $AllUsers)
 {
+	$UDN = $User.distinguishedname
+	$UOU = $UDN -split ',cn=|,ou=|,dc='	
 	
 	$AttVar = $User | Select-Object Enabled, PasswordExpired, PasswordLastSet, PasswordNeverExpires, PasswordNotRequired, Name, SamAccountName, EmailAddress, AccountExpirationDate, @{ Name = 'lastlogon'; Expression = { LastLogonConvert $_.lastlogon } }, DistinguishedName
 	$maxPasswordAge = (Get-ADDefaultDomainPasswordPolicy).MaxPasswordAge.Days
@@ -981,6 +994,7 @@ foreach ($User in $AllUsers)
 			
 			'Name' = $User.Name
 			'UserPrincipalName' = $User.UserPrincipalName
+			'OU' = $UOU[1]
 			'Enabled' = $AttVar.Enabled
 			'Protected from Deletion' = $User.ProtectedFromAccidentalDeletion
 			'Last Logon' = $AttVar.lastlogon
@@ -1044,6 +1058,7 @@ foreach ($User in $AllUsers)
 		
 		'Name'				      = $Name
 		'UserPrincipalName'	      = $UPN
+		'OU'	                  = $UOU[1]
 		'Enabled'				  = $Enabled
 		'Protected from Deletion' = $User.ProtectedFromAccidentalDeletion
 		'Last Logon'			  = $LastLogon
@@ -1185,6 +1200,8 @@ Else
 }
 
 Write-Host "Done!" -ForegroundColor White
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
+
 <###########################
 
 	   Group Policy
@@ -1218,6 +1235,8 @@ if (($GPOTable).Count -eq 0)
 	$GPOTable.Add($obj)
 }
 Write-Host "Done!" -ForegroundColor White
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
+
 <###########################
 
 	   Computers
@@ -1350,14 +1369,12 @@ $objULic = [PSCustomObject]@{
 $ComputersEnabledTable.Add($objULic)
 
 Write-Host "Done!" -ForegroundColor White
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
+
 
 Write-Host "Working on VMware Report..." -ForegroundColor Green
 
-
-if ($VCenterServer -eq $NULL)
-    {  $VCenterServer = Read-Host -Prompt 'No hard-coded vCenter server name in script, prompting interactively for vCenter Server Name' }
-
-Connect-ViServer $VCenterServer
+Connect-ViServer $VCenterServer1,$VCenterServer2,$VCenterServer3
 $MasterVMList = Get-VM
 
 $AllVirtualMachines = $MasterVMList | Select-Object Name,Guest,NumCPU,MemoryGB,ProvisionedSpaceGB,VMHost
@@ -1367,11 +1384,68 @@ $AllVirtualMachines | ForEach-Object  {
 		'Name'	      = $_.Name
 		'Guest' = $_.Guest
 		'NumCPU' = $_.NumCPU
-	     'MemoryGB'	      = $_.MemoryGB
+	    'MemoryGB'	      = $_.MemoryGB
 		'ProvisionedSpaceGB' = [math]::Round(($_.ProvisionedSpaceGB),2)
 		'VMHost' = $_.VMHost	
 	}
 $VmwareVmList.Add($obj)}
+
+#Custom Page
+$AllVirtualMachines = $MasterVMList | Select-Object Name,Guest,NumCPU,MemoryGB,ProvisionedSpaceGB,VMHost
+$AllVirtualMachines | ForEach-Object  {  
+
+
+	$obj = [PSCustomObject]@{
+		'Name'	      = $_.Name
+		'Guest' = $_.Guest
+		'NumCPU' = $_.NumCPU
+	    'MemoryGB'	      = $_.MemoryGB
+		'ProvisionedSpaceGB' = [math]::Round(($_.ProvisionedSpaceGB),2)
+		'VMHost' = $_.VMHost	
+	}
+	if ($_.NumCPU -gt 4)
+	{
+		$VmwareVmListTooManyCPU.Add($obj)	
+	}}
+
+$AllVirtualMachines | ForEach-Object  {  
+
+
+	$obj = [PSCustomObject]@{
+		'Name'	      = $_.Name
+		'Guest' = $_.Guest
+		'NumCPU' = $_.NumCPU
+	    'MemoryGB'	      = $_.MemoryGB
+		'ProvisionedSpaceGB' = [math]::Round(($_.ProvisionedSpaceGB),2)
+		'VMHost' = $_.VMHost	
+	}
+	if ($_.MemoryGB -gt 6)
+	{
+		$VmwareVmListHighMemory.Add($obj)
+	}}
+
+#Generate report of CPUREADY%.	
+	$CPUReadyDays=-7
+	$CPUReadyMins=32
+	$CPUReadyDivider=18000
+	$CPUReadyPercentage = 1
+	
+	$CPUReadyGroups=Get-Stat -Entity (get-vm) -Stat cpu.ready.summation -start (get-date).adddays($CPUReadyDays) -finish (get-date) -interval $CPUReadyMins -instance "" -ea silentlycontinue|Group-Object entity
+	 
+	$CPUReadyOutput=@()
+ 
+	ForEach ($CPUReadyGroup in $CPUReadyGroups)
+ 	{
+ 	$CPUReadyTemp= ""|select-Object Name, "Ready%"
+ 	$CPUReadyTemp.name=$CPUReadyGroup.name
+	 
+	$CPUReadyTemp."ready%"= "{0:n2}" -f (($CPUReadyGroup.group |measure-object value -ave).average/$CPUReadyDivider)
+	if ($CPUReadyTemp."ready%" -gt $CPUReadyPercentage)
+	{
+	$VmwareVmListCPUReady.Add($obj)
+	 }}
+	
+#Custom Page End
 
 $OutofDate = $MasterVMList | Where-Object {$_.PowerState -ne "PoweredOff" -and $_.ExtensionData.Guest.ToolsStatus -ne "toolsOk"}
 $ResultantSet = @($OutofDate | Select-Object Name,Guest,@{Name="ToolsVersion";Expression={$_.ExtensionData.Guest.Toolsversion}})
@@ -1414,7 +1488,7 @@ If (($OpenSnapshotTable).count -eq 0)
 	}
 }
 
-$AllDatastores = Get-Datastore | Select-Object Name, FreeSpaceGB, CapacityGB
+$AllDatastores = Get-Datastore | Select-Object Name, FreeSpaceGB, CapacityGB, @{N='ProvisionedGB';E={($_.ExtensionData.Summary.Capacity - $_.ExtensionData.Summary.FreeSpace + $_.ExtensionData.Uncommitted)/1GB}}
  
  $AllDatastores | ForEach-Object  {  
 
@@ -1422,6 +1496,7 @@ $AllDatastores = Get-Datastore | Select-Object Name, FreeSpaceGB, CapacityGB
 		'Name'	      = $_.Name
 		'FreeSpaceGB' = [math]::Round(($_.FreeSpaceGB),2)
 		'CapacityGB' = [math]::Round(($_.CapacityGB),2)
+		'ProvisionedGB' = [math]::Round(($_.ProvisionedGB),2)
 	}
 
 $DatastoreTable.Add($obj);
@@ -1433,6 +1508,49 @@ If (($DatastoreTable).count -eq 0)
 		'Information' = 'No datastores were found in the virtual infrastructure'
 	}
 }
+
+#TESTS
+$MyTestC1Tables = Get-Datastore | Select-Object Name, FreeSpaceGB, CapacityGB, @{N='ProvisionedGB';E={($_.ExtensionData.Summary.Capacity - $_.ExtensionData.Summary.FreeSpace + $_.ExtensionData.Uncommitted)/1GB}}
+ 
+ $MyTestC1Tables | ForEach-Object  {  
+
+	$obj = [PSCustomObject]@{
+		'Name'	      = $_.Name
+		'FreeSpaceGB' = [math]::Round(($_.FreeSpaceGB),2)
+		'CapacityGB' = [math]::Round(($_.CapacityGB),2)
+		'ProvisionedGB' = [math]::Round(($_.ProvisionedGB),2)
+	}
+
+$MyTestC1Table.Add($obj);
+}
+
+If (($MyTestC1Table).count -eq 0)
+{
+	$MyTestC1Table = [PSCustomObject]@{
+		'Information' = 'No MyTestC1Table data found'
+	}
+}
+$MyTestC2Tables = $null
+ 
+ $MyTestC2Tables | ForEach-Object  {  
+
+	$obj = [PSCustomObject]@{
+		'Name'	      = $_.Name
+		'FreeSpaceGB' = [math]::Round(($_.FreeSpaceGB),2)
+		'CapacityGB' = [math]::Round(($_.CapacityGB),2)
+		'ProvisionedGB' = [math]::Round(($_.ProvisionedGB),2)
+	}
+
+$MyTestC2Table.Add($obj);
+}
+
+If (($MyTestC2Table).count -eq 0)
+{
+	$MyTestC2Table = [PSCustomObject]@{
+		'Information' = 'No MyTestC2Table data found'
+	}
+}
+#TESTS
 
 $AllPortGroups = Get-VirtualPortGroup | Select-Object Name, VLanID, VirtualSwitch
  
@@ -1476,6 +1594,8 @@ If (($VcenterAlarmTable).count -eq 0)
 }
 
 Write-Host "Done!" -ForegroundColor White
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
+
 
 $tabarray = @('Dashboard', 'Groups', 'Organizational Units', 'Users', 'Group Policy', 'Computers', 'VM Infrastructure')
 
@@ -1784,7 +1904,7 @@ $FinalReport.Add($(Get-HTMLContentClose))
 
 $FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Accounts"))
 $FinalReport.Add($(Get-HTMLColumn1of2))
-$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users Haven't Logged on in $Days Days or more"))
+$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users Haven't Logged on in $Days Days or more (excludes disabled accounts)"))
 $FinalReport.Add($(Get-HTMLContentDataTable $userphaventloggedonrecentlytable -HideFooter))
 $FinalReport.Add($(Get-HTMLContentClose))
 $FinalReport.Add($(Get-HTMLColumnClose))
@@ -1884,7 +2004,7 @@ $FinalReport.Add($(Get-HTMLContentClose))
 
 $FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Accounts"))
 $FinalReport.Add($(Get-HTMLColumn1of2))
-$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users Haven't Logged on in $Days Days or more"))
+$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users Haven't Logged on in $Days Days or more (excludes disabled accounts)"))
 $FinalReport.Add($(Get-HTMLContentDataTable $userphaventloggedonrecentlytable -HideFooter))
 $FinalReport.Add($(Get-HTMLContentClose))
 $FinalReport.Add($(Get-HTMLColumnClose))
@@ -1949,6 +2069,14 @@ $FinalReport += get-htmlColumn1of2
 $FinalReport += Get-HtmlContentOpen -BackgroundShade 1 -HeaderText 'All Virtual Machines'
 $FinalReport += get-htmlcontentdatatable $VmwareVmList -HideFooter
 $FinalReport += Get-HtmlContentClose
+#Custom Page
+$FinalReport += Get-HtmlContentOpen -BackgroundShade 1 -HeaderText 'More than 4 CPUs'
+$FinalReport += get-htmlcontentdatatable $VmwareVmListTooManyCPU -HideFooter
+$FinalReport += Get-HtmlContentClose
+$FinalReport += Get-HtmlContentOpen -BackgroundShade 1 -HeaderText 'More than 6gb RAM'
+$FinalReport += get-htmlcontentdatatable $VmwareVmListHighMemory -HideFooter
+$FinalReport += Get-HtmlContentClose
+#Custom Page End
 $FinalReport += get-htmlColumnClose
 
 $FinalReport += get-htmlColumn2of2
@@ -1961,6 +2089,11 @@ $FinalReport += Get-HtmlContentClose
 $FinalReport += Get-HtmlContentOpen -HeaderText 'ESXi Hosts'
 $FinalReport += get-htmlcontentdatatable $EsxiHostTable -HideFooter
 $FinalReport += Get-HtmlContentClose
+#Custom Page
+$FinalReport += Get-HtmlContentOpen -BackgroundShade 1 -HeaderText 'CPU Ready% greater than 1'
+$FinalReport += get-htmlcontentdatatable $VmwareVmListCPUReady -HideFooter
+$FinalReport += Get-HtmlContentClose
+#Cutom Page End
 $FinalReport += get-htmlColumnClose
 
 $FinalReport += Get-HTMLContentOpen -HeaderText "Networking and Storage"
@@ -1981,6 +2114,28 @@ $FinalReport += get-htmlColumnClose
 
 $FinalReport += Get-HtmlContentClose
 
+#TESTS
+
+$FinalReport += Get-HTMLContentOpen -HeaderText "MyTest"
+   
+$FinalReport += Get-HTMLColumnOpen -ColumnNumber 1 -ColumnCount 2
+$FinalReport += Get-HtmlContentOpen -HeaderText 'MyTestC1'
+$FinalReport += get-htmlcontentdatatable $MyTestC1Table -HideFooter
+$FinalReport += Get-HtmlContentClose
+$FinalReport += get-htmlColumnClose
+
+
+$FinalReport += Get-HTMLColumnOpen -ColumnNumber 2 -ColumnCount 2
+$FinalReport += Get-HtmlContentOpen -HeaderText 'MyTestC2'
+$FinalReport += get-htmlcontentdatatable $MyTestC2Table -HideFooter
+$FinalReport += Get-HtmlContentClose
+$FinalReport += Get-HtmlContentClose
+$FinalReport += get-htmlColumnClose
+
+$FinalReport += Get-HtmlContentClose
+
+#TESTS_END
+
 $FinalReport += Get-HTMLContentOpen -HeaderText "vCenter Alarms"
 $FinalReport += Get-HtmlContentOpen -HeaderText 'Recent VCenter Alarms'
 $FinalReport += get-htmlcontentdatatable $VcenterAlarmTable -HideFooter
@@ -1991,9 +2146,14 @@ $FinalReport += get-htmltabcontentclose
 
 $FinalReport.Add($(Get-HTMLClosePage))
 
-$Day = (Get-Date).Day
-$Month = (Get-Date).Month
-$Year = (Get-Date).Year
-$ReportName = ("$Day - $Month - $Year - AD Report")
+#$Day = (Get-Date).Day
+#$Month = (Get-Date).Month
+#$Year = (Get-Date).Year
+#$ReportName = ("$Day - $Month - $Year - AD Report")
+$ReportName = ("AD Report")
 
 Save-HTMLReport -ReportContent $FinalReport -ReportName $ReportName -ReportPath $ReportSavePath #-ShowReport
+
+Disconnect-VIServer * -Confirm:$false
+[math]::Round(($stopwatch.elapsed.totalminutes),2)
+$Stopwatch = [system.diagnostics.stopwatch]::stop
