@@ -2090,7 +2090,7 @@ $FinalReport += Get-HtmlContentOpen -HeaderText 'ESXi Hosts'
 $FinalReport += get-htmlcontentdatatable $EsxiHostTable -HideFooter
 $FinalReport += Get-HtmlContentClose
 #Custom Page
-$FinalReport += Get-HtmlContentOpen -BackgroundShade 1 -HeaderText 'CPU Ready% greater than 1'
+$FinalReport += Get-HtmlContentOpen -BackgroundShade 1 -HeaderText 'Average 7 day CPU Ready% greater than 1'
 $FinalReport += get-htmlcontentdatatable $VmwareVmListCPUReady -HideFooter
 $FinalReport += Get-HtmlContentClose
 #Cutom Page End
