@@ -96,6 +96,7 @@ $Stopwatch = [system.diagnostics.stopwatch]::startnew()
 $VCenterServer1 = "vcenter.quadax.net"
 $VCenterServer2 = "invvcenter.quadax.net"
 $VCenterServer3 = "viewctr.quadax.net"
+$domaincontroller = (Get-ADDomain).ReplicaDirectoryServers
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -ParticipateInCEIP $false -Confirm:$false | Out-Null
 
 Import-Module VMware.VimAutomation.Core
@@ -236,7 +237,7 @@ $OpenSnapshotTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $DatastoreTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $PortGroupTable  = New-Object 'System.Collections.Generic.List[System.Object]'
 $VcenterAlarmTable  = New-Object 'System.Collections.Generic.List[System.Object]'
-$EsxiHostTable  = New-Object 'System.Collections.Generic.List[System.Object]'
+#$EsxiHostTable  = New-Object 'System.Collections.Generic.List[System.Object]'
 #TESTS
 $MyTestC1Table = New-Object 'System.Collections.Generic.List[System.Object]'
 $MyTestC2Table = New-Object 'System.Collections.Generic.List[System.Object]'
@@ -523,7 +524,7 @@ if (($ExpiringAccountsTable).Count -eq 0)
 }
 
 #Security Logs
-$SecurityLogs = Get-EventLog -Newest 7 -LogName "Security" | Where-Object { $_.Message -like "*An account*" }
+$SecurityLogs = Get-EventLog -ComputerName $domaincontroller -Newest 7 -LogName "Security" | Where-Object { $_.Message -like "*An account*" }
 
 foreach ($SecurityLog in $SecurityLogs)
 {
@@ -553,25 +554,25 @@ if (($SecurityEventTable).Count -eq 0)
 }
 
 #Tenant Domain
-$Domains = Get-ADForest | Select-Object -ExpandProperty upnsuffixes | ForEach-Object{
-	
-	$obj = [PSCustomObject]@{
-		
-		'UPN Suffixes' = $_
-		Valid		   = "True"
-	}
-	
-	$DomainTable.Add($obj)
-}
-if (($DomainTable).Count -eq 0)
-{
-	
-	$Obj = [PSCustomObject]@{
-		
-		Information = 'Information: No UPN Suffixes were found'
-	}
-	$DomainTable.Add($obj)
-}
+#$Domains = Get-ADForest | Select-Object -ExpandProperty upnsuffixes | ForEach-Object{
+#	
+#	$obj = [PSCustomObject]@{
+#		
+#		'UPN Suffixes' = $_
+#		Valid		   = "True"
+#	}
+#	
+#	$DomainTable.Add($obj)
+#}
+#if (($DomainTable).Count -eq 0)
+#{
+#	
+#	$Obj = [PSCustomObject]@{
+#		
+#		Information = 'Information: No UPN Suffixes were found'
+#	}
+#	$DomainTable.Add($obj)
+#}
 
 Write-Host "Done!" -ForegroundColor White
 [math]::Round(($stopwatch.elapsed.totalminutes),2)
@@ -718,6 +719,7 @@ if (($table).Count -eq 0)
 	$table.Add($obj)
 }
 #TOP groups table
+$DistroCount = ($Groups | Where-Object { $_.GroupCategory -eq "Distribution" }).Count
 $obj1 = [PSCustomObject]@{
 	
 	'Total Groups' = $Groups.Count
@@ -743,7 +745,7 @@ $obj1 = [PSCustomObject]@{
 }
 
 $GroupTypetable.Add($obj1)
-$DistroCount = ($Groups | Where-Object { $_.GroupCategory -eq "Distribution" }).Count
+#$DistroCount = ($Groups | Where-Object { $_.GroupCategory -eq "Distribution" }).Count
 
 $obj1 = [PSCustomObject]@{
 	
@@ -935,9 +937,9 @@ $UserPasswordNeverExpires = 0
 $ProtectedUsers = 0
 $NonProtectedUsers = 0
 
-$UsersWIthPasswordsExpiringInUnderAWeek = 0
-$UsersNotLoggedInOver30Days = 0
-$AccountsExpiringSoon = 0
+#$UsersWIthPasswordsExpiringInUnderAWeek = 0
+#$UsersNotLoggedInOver30Days = 0
+#$AccountsExpiringSoon = 0
 
 
 #Get users that haven't logged on in X amount of days, var is set at start of script
@@ -1052,7 +1054,7 @@ foreach ($User in $AllUsers)
 	$PasswordExpired = $AttVar.PasswordExpired
 	$PasswordLastSet = $AttVar.PasswordLastSet
 	$PasswordNeverExpires = $AttVar.PasswordNeverExpires
-	$daysUntilPWExpire = $daystoexpire
+	#$daysUntilPWExpire = $daystoexpire
 	
 	$obj = [PSCustomObject]@{
 		
@@ -1164,7 +1166,7 @@ $objULic = [PSCustomObject]@{
 $ProtectedUsersTable.Add($objULic)
 if ($null -ne (($userphaventloggedonrecentlytable).Information))
 {
-	$UHLONXD = "0"
+	$UHLONXD = $userphaventloggedonrecentlytable.Count
 	
 }
 Else
@@ -1432,7 +1434,7 @@ $AllVirtualMachines | ForEach-Object  {
 	
 	$CPUReadyGroups=Get-Stat -Entity (get-vm) -Stat cpu.ready.summation -start (get-date).adddays($CPUReadyDays) -finish (get-date) -interval $CPUReadyMins -instance "" -ea silentlycontinue|Group-Object entity
 	 
-	$CPUReadyOutput=@()
+	#$CPUReadyOutput=@()
  
 	ForEach ($CPUReadyGroup in $CPUReadyGroups)
  	{
@@ -1440,6 +1442,15 @@ $AllVirtualMachines | ForEach-Object  {
  	$CPUReadyTemp.name=$CPUReadyGroup.name
 	 
 	$CPUReadyTemp."ready%"= "{0:n2}" -f (($CPUReadyGroup.group |measure-object value -ave).average/$CPUReadyDivider)
+	$obj = [PSCustomObject]@{
+		'Name'	      = $CPUReadyGroup.Name
+		'Guest' = $CPUReadyGroup.Guest
+		'NumCPU' = $CPUReadyGroup.NumCPU
+		'Ready%' = $CPUReadyTemp."ready%"
+		'MemoryGB'	      = $CPUReadyGroup.MemoryGB
+		'ProvisionedSpaceGB' = [math]::Round(($CPUReadyGroup.ProvisionedSpaceGB),2)
+		'VMHost' = $CPUReadyGroup.VMHost	
+	}
 	if ($CPUReadyTemp."ready%" -gt $CPUReadyPercentage)
 	{
 	$VmwareVmListCPUReady.Add($obj)
@@ -1926,7 +1937,7 @@ $FinalReport.Add($(Get-HTMLTabContentClose))
 
 #Groups Report
 $FinalReport.Add($(Get-HTMLTabContentopen -TabName $tabarray[1] -TabHeading ("Report: " + (Get-Date -Format MM-dd-yyyy))))
-$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Groups Overivew"))
+$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Groups Overview"))
 $FinalReport.Add($(Get-HTMLContentTable $TOPGroupsTable -HideFooter))
 $FinalReport.Add($(Get-HTMLContentClose))
 
@@ -1981,7 +1992,7 @@ $FinalReport.Add($(Get-HTMLTabContentClose))
 #Users Report
 $FinalReport.Add($(Get-HTMLTabContentopen -TabName $tabarray[3] -TabHeading ("Report: " + (Get-Date -Format MM-dd-yyyy))))
 
-$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Users Overivew"))
+$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Users Overview"))
 $FinalReport.Add($(Get-HTMLContentTable $TOPUserTable -HideFooter))
 $FinalReport.Add($(Get-HTMLContentClose))
 
@@ -2039,7 +2050,7 @@ $FinalReport.Add($(Get-HTMLTabContentClose))
 #Computers Report
 $FinalReport.Add($(Get-HTMLTabContentopen -TabName $tabarray[5] -TabHeading ("Report: " + (Get-Date -Format MM-dd-yyyy))))
 
-$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Computers Overivew"))
+$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Computers Overview"))
 $FinalReport.Add($(Get-HTMLContentTable $TOPComputersTable -HideFooter))
 $FinalReport.Add($(Get-HTMLContentClose))
 
@@ -2086,9 +2097,9 @@ $FinalReport += Get-HtmlContentClose
 $FinalReport += Get-HtmlContentOpen -HeaderText 'Open VMWare Snapshots'
 $FinalReport += get-htmlcontentdatatable $OpenSnapshotTable -HideFooter
 $FinalReport += Get-HtmlContentClose
-$FinalReport += Get-HtmlContentOpen -HeaderText 'ESXi Hosts'
-$FinalReport += get-htmlcontentdatatable $EsxiHostTable -HideFooter
-$FinalReport += Get-HtmlContentClose
+#$FinalReport += Get-HtmlContentOpen -HeaderText 'ESXi Hosts'
+#$FinalReport += get-htmlcontentdatatable $EsxiHostTable -HideFooter
+#$FinalReport += Get-HtmlContentClose
 #Custom Page
 $FinalReport += Get-HtmlContentOpen -BackgroundShade 1 -HeaderText 'Average 7 day CPU Ready% greater than 1'
 $FinalReport += get-htmlcontentdatatable $VmwareVmListCPUReady -HideFooter
@@ -2132,7 +2143,7 @@ $FinalReport += Get-HtmlContentClose
 $FinalReport += Get-HtmlContentClose
 $FinalReport += get-htmlColumnClose
 
-$FinalReport += Get-HtmlContentClose
+#$FinalReport += Get-HtmlContentClose
 
 #TESTS_END
 
@@ -2144,7 +2155,7 @@ $FinalReport += Get-HtmlContentClose
 
 $FinalReport += get-htmltabcontentclose
 
-$FinalReport.Add($(Get-HTMLClosePage))
+#$FinalReport.Add($(Get-HTMLClosePage))
 
 #$Day = (Get-Date).Day
 #$Month = (Get-Date).Month
