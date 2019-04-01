@@ -202,6 +202,7 @@ $DefaultSGs = @(
 $Table = New-Object 'System.Collections.Generic.List[System.Object]'
 $OUTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $UserTable = New-Object 'System.Collections.Generic.List[System.Object]'
+$UserTableDisabled = New-Object 'System.Collections.Generic.List[System.Object]'
 $GroupTypetable = New-Object 'System.Collections.Generic.List[System.Object]'
 $DefaultGrouptable = New-Object 'System.Collections.Generic.List[System.Object]'
 $EnabledDisabledUsersTable = New-Object 'System.Collections.Generic.List[System.Object]'
@@ -1059,7 +1060,7 @@ foreach ($User in $AllUsers)
 	$obj = [PSCustomObject]@{
 		
 		'Name'				      = $Name
-		'UserPrincipalName'	      = $UPN
+		#'UserPrincipalName'	      = $UPN
 		'OU'	                  = $UOU[1]
 		'Enabled'				  = $Enabled
 		'Protected from Deletion' = $User.ProtectedFromAccidentalDeletion
@@ -1068,11 +1069,16 @@ foreach ($User in $AllUsers)
 		'Account Expiration'	  = $AccountExpiration
 		'Change Password Next Logon' = $PasswordExpired
 		'Password Last Set'	      = $PasswordLastSet
-		'Password Never Expires'  = $PasswordNeverExpires
-		'Days Until Password Expires' = $daystoexpire
+		#'Password Never Expires'  = $PasswordNeverExpires
+		#'Days Until Password Expires' = $daystoexpire
 	}
-	
-	$usertable.Add($obj)
+	if ($Enabled -eq $true) {
+        $UserTable.Add($obj)
+		}
+	if ($Enabled -eq $false) {
+		$UserTableDisabled.Add($obj)
+		}
+	#$usertable.Add($obj)
 	
 	if (($daystoexpire -lt $DaysUntilPWExpireINT) -and ($daystoexpire -gt "-1"))
 	{
@@ -1997,7 +2003,16 @@ $FinalReport.Add($(Get-HTMLContentTable $TOPUserTable -HideFooter))
 $FinalReport.Add($(Get-HTMLContentClose))
 
 $FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Active Directory Users"))
+$FinalReport.Add($(Get-HTMLColumn1of2))
+$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Enabled Users"))
 $FinalReport.Add($(Get-HTMLContentDataTable $UserTable -HideFooter))
+$FinalReport.Add($(Get-HTMLContentClose))
+$FinalReport.Add($(Get-HTMLColumnClose))
+$FinalReport.Add($(Get-HTMLColumn2of2))
+$FinalReport.Add($(Get-HTMLContentOpen -HeaderText 'Disabled Users'))
+$FinalReport.Add($(Get-HTMLContentDataTable $UserTableDisabled -HideFooter))
+$FinalReport.Add($(Get-HTMLContentClose))
+$FinalReport.Add($(Get-HTMLColumnClose))
 $FinalReport.Add($(Get-HTMLContentClose))
 
 $FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Expiring Items"))
