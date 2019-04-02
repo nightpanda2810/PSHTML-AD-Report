@@ -97,7 +97,7 @@ $VCenterServer1 = "vcenter.quadax.net"
 $VCenterServer2 = "invvcenter.quadax.net"
 $VCenterServer3 = "viewctr.quadax.net"
 $domaincontroller = (Get-ADDomain).ReplicaDirectoryServers
-Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -ParticipateInCEIP $false -Confirm:$false | Out-Null
+Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -ParticipateInCEIP $false -Confirm:$false > $null
 
 Import-Module VMware.VimAutomation.Core
 
@@ -214,7 +214,7 @@ $DomainTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $OUGPOTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $GroupMembershipTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $PasswordExpirationTable = New-Object 'System.Collections.Generic.List[System.Object]'
-$PasswordExpireSoonTable = New-Object 'System.Collections.Generic.List[System.Object]'
+#$PasswordExpireSoonTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $userphaventloggedonrecentlytable = New-Object 'System.Collections.Generic.List[System.Object]'
 $EnterpriseAdminTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $NewCreatedUsersTable = New-Object 'System.Collections.Generic.List[System.Object]'
@@ -239,9 +239,6 @@ $DatastoreTable = New-Object 'System.Collections.Generic.List[System.Object]'
 $PortGroupTable  = New-Object 'System.Collections.Generic.List[System.Object]'
 $VcenterAlarmTable  = New-Object 'System.Collections.Generic.List[System.Object]'
 #$EsxiHostTable  = New-Object 'System.Collections.Generic.List[System.Object]'
-#TESTS
-$MyTestC1Table = New-Object 'System.Collections.Generic.List[System.Object]'
-$MyTestC2Table = New-Object 'System.Collections.Generic.List[System.Object]'
 $VmwareVmListTooManyCPU = New-Object 'System.Collections.Generic.List[System.Object]'
 $VmwareVmListHighMemory = New-Object 'System.Collections.Generic.List[System.Object]'
 $VmwareVmListCPUReady = New-Object 'System.Collections.Generic.List[System.Object]'
@@ -1048,13 +1045,13 @@ foreach ($User in $AllUsers)
 	}
 	
 	$Name = $User.Name
-	$UPN = $User.UserPrincipalName
+	#$UPN = $User.UserPrincipalName
 	$Enabled = $AttVar.Enabled
 	$EmailAddress = $AttVar.EmailAddress
 	$AccountExpiration = $AttVar.AccountExpirationDate
 	$PasswordExpired = $AttVar.PasswordExpired
 	$PasswordLastSet = $AttVar.PasswordLastSet
-	$PasswordNeverExpires = $AttVar.PasswordNeverExpires
+	#$PasswordNeverExpires = $AttVar.PasswordNeverExpires
 	#$daysUntilPWExpire = $daystoexpire
 	
 	$obj = [PSCustomObject]@{
@@ -1080,17 +1077,17 @@ foreach ($User in $AllUsers)
 		}
 	#$usertable.Add($obj)
 	
-	if (($daystoexpire -lt $DaysUntilPWExpireINT) -and ($daystoexpire -gt "-1"))
-	{
-		
-		$obj = [PSCustomObject]@{
-			
-			'Name'					      = $Name
-			'Days Until Password Expires' = $daystoexpire
-		}
-		
-		$PasswordExpireSoonTable.Add($obj)
-	}
+#	if (($daystoexpire -lt $DaysUntilPWExpireINT) -and ($daystoexpire -gt "-1"))
+#	{
+#		
+#		$obj = [PSCustomObject]@{
+#			
+#			'Name'					      = $Name
+#			'Days Until Password Expires' = $daystoexpire
+#		}
+#		
+#		$PasswordExpireSoonTable.Add($obj)
+#	}
 }
 if (($userphaventloggedonrecentlytable).Count -eq 0)
 {
@@ -1099,15 +1096,14 @@ if (($userphaventloggedonrecentlytable).Count -eq 0)
 		Information = "Information: No Users were found to have not logged on in $Days days or more"
 	}
 }
-if (($PasswordExpireSoonTable).Count -eq 0)
-{
-	
-	$Obj = [PSCustomObject]@{
-		
-		Information = 'Information: No users were found to have passwords expiring soon'
-	}
-	$PasswordExpireSoonTable.Add($obj)
-}
+#if (($PasswordExpireSoonTable).Count -eq 0)
+#{
+#	
+#	$Obj = [PSCustomObject]@{
+#		
+#	}
+#	$PasswordExpireSoonTable.Add($obj)
+#}
 
 
 if (($usertable).Count -eq 0)
@@ -1181,20 +1177,20 @@ Else
 	
 }
 #TOP User table
-If ($null -eq (($ExpiringAccountsTable).Information))
-{
-	
-	$objULic = [PSCustomObject]@{
-		'Total Users' = $AllUsers.Count
-		"Users with Passwords Expiring in less than $DaysUntilPWExpireINT days" = $PasswordExpireSoonTable.Count
-		'Expiring Accounts' = $ExpiringAccountsTable.Count
-		"Users Haven't Logged on in $Days Days or more" = $UHLONXD
-	}
-	
-	$TOPUserTable.Add($objULic)
-	
-	
-}
+#If ($null -eq (($ExpiringAccountsTable).Information))
+#{
+#	
+#	$objULic = [PSCustomObject]@{
+#		'Total Users' = $AllUsers.Count
+#		"Users with Passwords Expiring in less than $DaysUntilPWExpireINT days" = $PasswordExpireSoonTable.Count
+#		'Expiring Accounts' = $ExpiringAccountsTable.Count
+#		"Users Haven't Logged on in $Days Days or more" = $UHLONXD
+#	}
+#	
+#	$TOPUserTable.Add($objULic)
+#	
+#	
+#}
 Else
 {
 	
@@ -1382,7 +1378,7 @@ Write-Host "Done!" -ForegroundColor White
 
 Write-Host "Working on VMware Report..." -ForegroundColor Green
 
-Connect-ViServer $VCenterServer1,$VCenterServer2,$VCenterServer3
+Connect-ViServer $VCenterServer1,$VCenterServer2,$VCenterServer3 > $null
 $MasterVMList = Get-VM
 
 $AllVirtualMachines = $MasterVMList | Select-Object Name,Guest,NumCPU,MemoryGB,ProvisionedSpaceGB,VMHost
@@ -1483,20 +1479,22 @@ If (($OutdatedVMwareTools).count -eq 0)
 		'Information' = 'All virtual machines have up-to-date VMWare Tools installations'
 	}
 }
-
-$Snapshots = $MasterVMList | Get-Snapshot | Select-Object Guest,NumCPU,MemoryGB,ProvisionedSpaceGB
- 
- $Snapshots | ForEach-Object  {  
-
-	$obj = [PSCustomObject]@{
-		'Guest'	      = $_.Guest
-		'NumcPU' = $_.NumcPU
-		'MemoryGB' = $_.MemoryGB
-	    'ProvisionedSpaceGB'= $_.ProvisionedSpaceGB
-	}
-
-$OpenSnapshotTable.Add($obj);
-}
+$Snapshots = $MasterVMList
+ForEach ($Snapshot in $Snapshots)
+    {
+        $VMSnapshot = Get-Snapshot -VM $Snapshot.name
+        
+        $obj = [PSCustomObject]@{
+		'Guest'	      = $Snapshot.Guest
+		'NumcPU' = $Snapshot.NumcPU
+		'MemoryGB' = $Snapshot.MemoryGB
+	    'ProvisionedSpaceGB'= $Snapshot.ProvisionedSpaceGB
+        'Snap Name' = $VMSnapshot.name
+        'Description' = $VMSnapshot.Description
+	        }
+if ($VMSnapshot.description -ne $null){
+         $OpenSnapshotTable.add($obj)}
+         }
 
 If (($OpenSnapshotTable).count -eq 0)
 {
@@ -1526,48 +1524,6 @@ If (($DatastoreTable).count -eq 0)
 	}
 }
 
-#TESTS
-$MyTestC1Tables = Get-Datastore | Select-Object Name, FreeSpaceGB, CapacityGB, @{N='ProvisionedGB';E={($_.ExtensionData.Summary.Capacity - $_.ExtensionData.Summary.FreeSpace + $_.ExtensionData.Uncommitted)/1GB}}
- 
- $MyTestC1Tables | ForEach-Object  {  
-
-	$obj = [PSCustomObject]@{
-		'Name'	      = $_.Name
-		'FreeSpaceGB' = [math]::Round(($_.FreeSpaceGB),2)
-		'CapacityGB' = [math]::Round(($_.CapacityGB),2)
-		'ProvisionedGB' = [math]::Round(($_.ProvisionedGB),2)
-	}
-
-$MyTestC1Table.Add($obj);
-}
-
-If (($MyTestC1Table).count -eq 0)
-{
-	$MyTestC1Table = [PSCustomObject]@{
-		'Information' = 'No MyTestC1Table data found'
-	}
-}
-$MyTestC2Tables = $null
- 
- $MyTestC2Tables | ForEach-Object  {  
-
-	$obj = [PSCustomObject]@{
-		'Name'	      = $_.Name
-		'FreeSpaceGB' = [math]::Round(($_.FreeSpaceGB),2)
-		'CapacityGB' = [math]::Round(($_.CapacityGB),2)
-		'ProvisionedGB' = [math]::Round(($_.ProvisionedGB),2)
-	}
-
-$MyTestC2Table.Add($obj);
-}
-
-If (($MyTestC2Table).count -eq 0)
-{
-	$MyTestC2Table = [PSCustomObject]@{
-		'Information' = 'No MyTestC2Table data found'
-	}
-}
-#TESTS
 
 $AllPortGroups = Get-VirtualPortGroup | Select-Object Name, VLanID, VirtualSwitch
  
@@ -1906,18 +1862,18 @@ $FinalReport.Add($(Get-HTMLContentOpen -HeaderText "AD Objects Modified in Last 
 $FinalReport.Add($(Get-HTMLContentDataTable $ADObjectTable))
 $FinalReport.Add($(Get-HTMLContentClose))
 
-$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Expiring Items"))
-$FinalReport.Add($(Get-HTMLColumn1of2))
-$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users with Passwords Expiring in less than $DaysUntilPWExpireINT days"))
-$FinalReport.Add($(Get-HTMLContentDataTable $PasswordExpireSoonTable -HideFooter))
-$FinalReport.Add($(Get-HTMLContentClose))
-$FinalReport.Add($(Get-HTMLColumnClose))
-$FinalReport.Add($(Get-HTMLColumn2of2))
-$FinalReport.Add($(Get-HTMLContentOpen -HeaderText 'Accounts Expiring Soon'))
-$FinalReport.Add($(Get-HTMLContentDataTable $ExpiringAccountsTable -HideFooter))
-$FinalReport.Add($(Get-HTMLContentClose))
-$FinalReport.Add($(Get-HTMLColumnClose))
-$FinalReport.Add($(Get-HTMLContentClose))
+#$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Expiring Items"))
+#$FinalReport.Add($(Get-HTMLColumn1of2))
+#$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users with Passwords Expiring in less than $DaysUntilPWExpireINT days"))
+#$FinalReport.Add($(Get-HTMLContentDataTable $PasswordExpireSoonTable -HideFooter))
+#$FinalReport.Add($(Get-HTMLContentClose))
+#$FinalReport.Add($(Get-HTMLColumnClose))
+#$FinalReport.Add($(Get-HTMLColumn2of2))
+#$FinalReport.Add($(Get-HTMLContentOpen -HeaderText 'Accounts Expiring Soon'))
+#$FinalReport.Add($(Get-HTMLContentDataTable $ExpiringAccountsTable -HideFooter))
+#$FinalReport.Add($(Get-HTMLContentClose))
+#$FinalReport.Add($(Get-HTMLColumnClose))
+#$FinalReport.Add($(Get-HTMLContentClose))
 
 $FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Accounts"))
 $FinalReport.Add($(Get-HTMLColumn1of2))
@@ -2015,18 +1971,18 @@ $FinalReport.Add($(Get-HTMLContentClose))
 $FinalReport.Add($(Get-HTMLColumnClose))
 $FinalReport.Add($(Get-HTMLContentClose))
 
-$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Expiring Items"))
-$FinalReport.Add($(Get-HTMLColumn1of2))
-$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users with Passwords Expiring in less than $DaysUntilPWExpireINT days"))
-$FinalReport.Add($(Get-HTMLContentDataTable $PasswordExpireSoonTable -HideFooter))
-$FinalReport.Add($(Get-HTMLContentClose))
-$FinalReport.Add($(Get-HTMLColumnClose))
-$FinalReport.Add($(Get-HTMLColumn2of2))
-$FinalReport.Add($(Get-HTMLContentOpen -HeaderText 'Accounts Expiring Soon'))
-$FinalReport.Add($(Get-HTMLContentDataTable $ExpiringAccountsTable -HideFooter))
-$FinalReport.Add($(Get-HTMLContentClose))
-$FinalReport.Add($(Get-HTMLColumnClose))
-$FinalReport.Add($(Get-HTMLContentClose))
+#$FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Expiring Items"))
+#$FinalReport.Add($(Get-HTMLColumn1of2))
+#$FinalReport.Add($(Get-HTMLContentOpen -BackgroundShade 1 -HeaderText "Users with Passwords Expiring in less than $DaysUntilPWExpireINT days"))
+#$FinalReport.Add($(Get-HTMLContentDataTable $PasswordExpireSoonTable -HideFooter))
+#$FinalReport.Add($(Get-HTMLContentClose))
+#$FinalReport.Add($(Get-HTMLColumnClose))
+#$FinalReport.Add($(Get-HTMLColumn2of2))
+#$FinalReport.Add($(Get-HTMLContentOpen -HeaderText 'Accounts Expiring Soon'))
+#$FinalReport.Add($(Get-HTMLContentDataTable $ExpiringAccountsTable -HideFooter))
+#$FinalReport.Add($(Get-HTMLContentClose))
+#$FinalReport.Add($(Get-HTMLColumnClose))
+#$FinalReport.Add($(Get-HTMLContentClose))
 
 $FinalReport.Add($(Get-HTMLContentOpen -HeaderText "Accounts"))
 $FinalReport.Add($(Get-HTMLColumn1of2))
@@ -2139,28 +2095,6 @@ $FinalReport += Get-HtmlContentClose
 $FinalReport += get-htmlColumnClose
 
 $FinalReport += Get-HtmlContentClose
-
-#TESTS
-
-$FinalReport += Get-HTMLContentOpen -HeaderText "MyTest"
-   
-$FinalReport += Get-HTMLColumnOpen -ColumnNumber 1 -ColumnCount 2
-$FinalReport += Get-HtmlContentOpen -HeaderText 'MyTestC1'
-$FinalReport += get-htmlcontentdatatable $MyTestC1Table -HideFooter
-$FinalReport += Get-HtmlContentClose
-$FinalReport += get-htmlColumnClose
-
-
-$FinalReport += Get-HTMLColumnOpen -ColumnNumber 2 -ColumnCount 2
-$FinalReport += Get-HtmlContentOpen -HeaderText 'MyTestC2'
-$FinalReport += get-htmlcontentdatatable $MyTestC2Table -HideFooter
-$FinalReport += Get-HtmlContentClose
-$FinalReport += Get-HtmlContentClose
-$FinalReport += get-htmlColumnClose
-
-#$FinalReport += Get-HtmlContentClose
-
-#TESTS_END
 
 $FinalReport += Get-HTMLContentOpen -HeaderText "vCenter Alarms"
 $FinalReport += Get-HtmlContentOpen -HeaderText 'Recent VCenter Alarms'
