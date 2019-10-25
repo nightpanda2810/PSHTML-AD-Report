@@ -95,7 +95,6 @@ $Stopwatch = [system.diagnostics.stopwatch]::startnew()
 #Change this to point to VCenter server address, or leave $NULL to be prompted later.
 $VCenterServer1 = "vcenter.quadax.net"
 $VCenterServer2 = "invvcenter.quadax.net"
-$VCenterServer3 = "viewctr.quadax.net"
 $domaincontroller = (Get-ADDomain).ReplicaDirectoryServers
 Set-PowerCLIConfiguration -InvalidCertificateAction Ignore -ParticipateInCEIP $false -Confirm:$false > $null
 
